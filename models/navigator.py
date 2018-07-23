@@ -1,11 +1,10 @@
 import os
-from sys import executable
-from subprocess import Popen, CREATE_NEW_CONSOLE
 from database.database import Database
 
 from utils.stack import Stack
 from utils.functions import add_occurences, check_file_format
-from models.search import Search
+
+
 
 
 #create a stack to hold directories visited and add the current directory
@@ -19,79 +18,109 @@ class Navigator:
         #holds all of the working directories
         self.dirs = []
         #holds all of the working files
+
         self.files = []
         #stops clear feature so traceback can be viewed
         self.debug = False
-        #starts system by listing current directory
-        self.list_all()
+
+        self.menu_choices = [
+            {'command': 'previous_directory', 'hotkey': 'b', 'menu_action': self.previous_dir},
+            {'command': 'view_all_files', 'hotkey': 'v', 'menu_action': self.list_directory, 'menu_action_arg': 'list_files'},
+            {'command': 'view_all_directories', 'hotkey': 'd', 'menu_action': self.list_directory, 'menu_action_arg': 'list_directories'},
+            {'command': 'run_file', 'hotkey': 'r', 'menu_action': self.run_file},
+            {'command': 'open_project', 'hotkey': 'o', 'menu_action': self.open_dir_atom},
+            {'command': 'custom_command', 'hotkey': 'c', 'menu_action': self.custom_command},
+            {'command': 'quick_navigation', 'hotkey': 'q', 'menu_action': self.quick_nav},
+            {'command': 'help', 'hotkey': '--help', 'menu_action': self.help}
+            ]
+
+
+        #starts system by listing current directory with all contents
+        self.list_directory('list_all')
+
 
 
     def __repr__(self):
         return f"<Navigator with {self.dirs} directories and {self.files} files>"
 
     def menu(self):
+
+        """
+
+        Calls different functions based on user input
+
+        """
+
+
+
+
+        print(f' \n\n {os.getcwd()} \n\n')
+        selection = input('')
         try:
-            choice = input(f' \n Curent Directory: {os.getcwd()} \n \n 1: View all files (v) \n 2: View all Directories (d) \n 3: Quick Nav (q) \n 4. Back directory (b) \n 5. Run File (r) \n 6. Custom Command (c) \n 7. Search (s) \n 8. Open Project (o) \n \n' )
-            if choice == "b":
-                self.previous_dir()
-            elif choice == "v":
-                self.list_files()
-            elif choice == "d":
-                self.list_dir()
-            elif choice == "r":
-                self.run_file()
-            elif choice == "o":
-                self.open_dir_atom()
-            elif choice == "c":
-                self.custom_command()
-            elif choice == "q":
-                self.quick_nav()
-            elif choice == "s":
-                self.search()
-            elif int(choice):
-                self.change_dir(choice)
+            #loop through menu choices, if hotkey = input selection run the coresponding function or if input is an integer change the directory
+            #otherwise raise an error
+            for choice in self.menu_choices:
+                if choice['hotkey'] == selection:
+                    menu_action = choice.get('menu_action')
+                    menu_action_arg = choice.get('menu_action_arg')
+                    if menu_action_arg is not None:
+                        menu_action(menu_action_arg)
+                    else:
+                        menu_action()
+            if isinstance(int(selection),int):
+                self.change_dir(selection)
             else:
-                raise ValueError('please enter a valid menu choice')
-        except ValueError:
-            self.clear()
-            print('please enter a valid menu choice')
+                raise ValueError('Please Enter Valid Menu Choice, --help')
+        except ValueError as err:
+            print('Please Enter Valid Menu Choice --help')
             self.menu()
 
-    def list_all(self):
-        self.clear()
+
+    def list_directory(self,display):
+
+
+        """
+        List all directories and files in the current directory.
+
+        @param display: displays which type of data gets appended and output
+
+        """
+        self.clear_terminal()
         self.dirs = []
         self.files = []
-        current_dir = os.listdir(os.getcwd())
-        for idx,e in enumerate(current_dir):
-            if os.path.isfile(e):
-                print(f' FILE {idx + 1} ' + e)
-                self.files.append({'file': e, 'command': idx + 1})
-            if os.path.isdir(e):
-                print(f' DIR {idx + 1} ' + e)
-                self.dirs.append({'dir': os.getcwd() + '\\' + e, 'command': idx + 1})
-        self.menu()
 
+        directory_list = os.listdir(os.getcwd())
 
-    def list_dir(self):
-        self.clear()
-        self.dirs = []
-        current_dir = os.getcwd()
-        dirs = [name for name in os.listdir(".") if os.path.isdir(name)]
-        for idx, d in enumerate(dirs):
-            self.dirs.append({'dir':current_dir + '\\' + d, 'command': idx + 1})
-            print(f' DIR {idx + 1} ' + d)
-        self.menu()
+        if display == "list_all":
+            for idx, item in enumerate(directory_list):
+                if os.path.isfile(item):
+                    print(f' FILE {idx + 1} ' + item)
+                    self.files.append({'file': item, 'command': idx + 1})
+                if os.path.isdir(item):
+                    print(f' DIR {idx + 1} ' + item)
+                    self.dirs.append({'dir': os.getcwd() + '\\' + item, 'command': idx + 1})
 
-    def list_files(self):
-        self.clear()
-        self.files = []
-        files = [f for f in os.listdir('.') if os.path.isfile(f)]
-        for idx, f in enumerate(files):
-            self.files.append({'file': f, 'command': idx + 1})
-            print(f' FILE {idx + 1} ' + f)
+        elif display == "list_files":
+            for idx, file in enumerate(directory_list):
+                if os.path.isfile(file):
+                    print(f' FILE {idx + 1} ' + file)
+                    self.files.append({'file': file, 'command': idx + 1})
+
+        elif display == "list_directories":
+            for idx, dir in enumerate(directory_list):
+                if os.path.isdir(dir):
+                    print(f' DIR {idx + 1} ' + dir)
+                    self.dirs.append({'dir': os.getcwd() + '\\' + dir, 'command': idx + 1})
+
         self.menu()
 
     def run_file(self):
+        """
+
+        checks file type and excutes in a seprate terminal instance and saves URL stack to db
+
+
+        """
         input_num = input('Run File Number: ')
         for f in self.files:
             if f['command'] == int(input_num):
@@ -111,77 +140,115 @@ class Navigator:
         self.menu()
 
 
-    def change_dir(self,choice):
+    def change_dir(self,selection):
+        """
+        changes the current directory based on user input
+
+        @param selection: user input provided
+
+        """
         for d in self.dirs:
-            if d['command'] == int(choice):
+            if d['command'] == int(selection):
                 os.chdir(d['dir'])
                 stack.push(d['dir'])
                 break
-        self.list_all()
+        self.list_directory('list_all')
 
     def previous_dir(self):
+        """
+        moves back 1 directory and pops first one off the stack
+
+        """
         try:
-            print(stack.items)
-            os.chdir(stack.first())
+            #changes dir to second position in stack (previous dir)
+            os.chdir(stack.position(1))
+            #remove first directory from stack after navigating
             stack.pop()
-            self.list_all()
+            self.list_directory('list_all')
         except IndexError:
+            self.list_directory('list_all')
             print('No Directory History')
-            self.list_all()
+
 
     def custom_command(self):
-        command = input()
+        """
+        asks user for input then excutes command
+
+        """
+        command = input('enter command: \n')
         os.system(command)
-        self.menu()
+        if input('enter another command? (y/n) \n') == "y":
+            self.custom_command()
+        else:
+            print('custom command mode exited')
+            self.menu()
 
     def quick_nav(self):
 
-        self.clear()
+        """
+        queries the database and sorts saved filepath data by most used.
+
+        """
+
+        self.clear_terminal()
         #get all routes
         #all all occurences of routes
-        data = add_occurences([{'route': i['route'][0], 'id': i['_id']} for i in Database.find('routes',{})])
-        #sort by decending
-        count = lambda i: list(i.values())
+        routes = add_occurences([{'route': i['route'][0], 'id': i['_id']} for i in Database.find('routes',{})])
 
-        decending = sorted(count(data), key = lambda i: i['count'], reverse=True)
+        count = lambda i: list(i.values())
+        #sort by decending
+        descend_by_count = sorted(count(routes), key = lambda i: i['count'], reverse=True)
 
         choices = []
-        for idx, e in enumerate(decending):
-            print(' ' + str(idx + 1) + ' ' + e['route'])
-            choices.append({'idx': idx, 'route': e['route'], 'id': e['id']})
+        for idx, route in enumerate(descend_by_count):
+            print(' ' + str(idx + 1) + ' ' + route['route'])
+            choices.append({'idx': idx, 'route': route['route'], 'id': route['id']})
 
-        choice = input(' \n\n enter number: ')
-        for e in choices:
+        selection = input(' \n\n enter number: ')
+        for choice in choices:
             try:
-                if e['idx'] + 1 == int(choice):
-                    print(e['route'])
-                    os.chdir(e['route'])
-                    stack.push(e['route'])
+                if choice['idx'] + 1 == int(selection):
+                    os.chdir(choice['route'])
+                    stack.push(choice['route'])
+                    self.clear_terminal()
+                    self.list_directory('list_all')
+                    self.menu()
             except FileNotFoundError:
-                self.clear()
+                self.clear_terminal()
                 print(' \n\n file was not found, perhaps it was moved. \n\n')
                 to_delete = input(' Would you like to delete the path? (y/n) ')
                 if to_delete == "y":
-                    Database.remove('routes', {'_id': e['id']})
+                    Database.remove('routes', {'_id': choice['id']})
                     print(' \n\n path removed')
 
         self.menu()
 
 
-    def search(self):
-        self.clear()
-        nav = input(' 1. Search Files (f) \n 2. Search Dirs (d) \n 3. Search file contents \n')
 
-        if nav == "f":
-            query = input(' Search for filename: ')
-            Search(query).search_file(os.getcwd())
-        elif nav == "d":
-            query = input(' Search for directory: ')
-            Search(query).search_directory(os.getcwd())
+    def clear_terminal(self):
 
-        self.menu()
+        """
 
-    def clear(self):
+        clears terminal output
+
+        @returns function or None
+
+        """
+
         if self.debug:
             return None
         return os.system('cls')
+
+
+    def help(self):
+
+        """
+
+        Prints out menu options
+
+
+        """
+        self.clear_terminal()
+        for option in self.menu_choices:
+            print(f" command: {option['command']} ---> hotkey: {option['hotkey']}")
+        self.menu()
