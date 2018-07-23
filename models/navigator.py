@@ -180,7 +180,7 @@ class Navigator:
         if input('enter another command? (y/n) \n') == "y":
             self.custom_command()
         else:
-            print('custom command mode exited')
+            print('\n\n custom command mode exited')
             self.menu()
 
     def quick_nav(self):
