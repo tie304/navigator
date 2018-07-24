@@ -42,7 +42,7 @@ git clone https://github.com/tie304/navigator.git
 
 * Add Navigator to [path enviroment variable](https://www.youtube.com/watch?v=7LcDke9rLd0). Make sure you place the absolute path to Navigator
 
-* Open navigator.bat inside folder structure where you clone the repository and add the same path you added in the path enviroment variable
+* Open navigator.bat inside folder structure where you cloned the repository and add the same path you added in the path enviroment variable
 
 ```
 pip install -r requirements.txt
